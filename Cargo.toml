@@ -1,0 +1,14 @@
+[package]
+name = "starters"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0.13", features = ["derive"] }
+dark-light = "0.2.3"
+# executable-finder = "0.2.2"
+executable-finder = { git = "https://github.com/ModProg/executable-finder", branch = "fix-symlinks-unix" }
+# iced = "0.4.2"
+iced = { git = "https://github.com/iced-rs/iced", version = "0.4.2" }
+iced_native = { git = "https://github.com/iced-rs/iced", version = "0.5.1" }
