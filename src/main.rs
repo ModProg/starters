@@ -99,11 +99,10 @@ impl Application for Starter {
     }
 
     fn theme(&self) -> Self::Theme {
-        Theme::Dark
-        // match dark_light::detect() {
-        //     dark_light::Mode::Dark => Theme::Dark,
-        //     dark_light::Mode::Light => Theme::Light,
-        // }
+        match dark_light::detect() {
+            dark_light::Mode::Dark => Theme::Dark,
+            dark_light::Mode::Light => Theme::Light,
+        }
     }
 
     fn title(&self) -> String {
