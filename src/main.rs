@@ -1,9 +1,14 @@
+use std::process::{exit, Command};
+
 use clap::Parser;
 use executable_finder::{executables, Executable};
-use iced::keyboard::{self, KeyCode};
-use iced::widget::{button, column, scrollable, text, text_input};
-use iced::{executor, theme, window, Application, Command, Element, Event, Length, Theme};
-use iced_native::window::Event as WindowEvent;
+
+use gooey::context::AsEventContext;
+use gooey::kludgine::app::winit::keyboard::KeyCode;
+use gooey::widget::{EventHandling, Widget, WidgetRef, HANDLED, IGNORED};
+use gooey::widgets::{Button, Expand, Input, Scroll, Stack};
+use gooey::{kludgine::app::winit::window::WindowLevel, Run};
+use gooey::{value::Dynamic, widget::Children};
 
 #[derive(Debug, Parser)]
 enum Cmd {
@@ -18,140 +23,77 @@ enum Data {
     None,
 }
 
-impl Default for Data {
-    fn default() -> Self {
-        Data::None
-    }
-}
-
 impl Data {
-    fn build(self, filter: &str) -> Vec<Element<Message>> {
+    fn build(&self, filter: &str) -> Children {
         match self {
             Data::Commands(this) => this
-                .into_iter()
+                .iter()
                 .filter(|this| this.name.to_lowercase().contains(&filter.to_lowercase()))
-                .map(|this| {
-                    button(text(this.name))
-                        .width(Length::Fill)
-                        .style(theme::Button::Text)
-                        .into()
+                .take(20)
+                .map(|it| {
+                    let path = it.path.clone();
+                    Button::new(it.name.to_owned()).on_click(move |_| {
+                        _ = Command::new(&path).spawn();
+                        exit(0);
+                    })
                 })
                 .collect(),
-            Data::None => vec![],
+            Data::None => Children::default(),
         }
     }
 }
 
-pub fn main() -> iced::Result {
+pub fn main() {
     let results: Data = match Cmd::parse() {
         Cmd::Commands => Data::Commands({
             let mut data = executables().unwrap();
             data.sort();
             data.dedup();
+            eprintln!("{}", data.len());
             data
         }),
         Cmd::Windows => todo!(),
         Cmd::Apps => todo!(),
     };
-    Starter::run(iced::Settings {
-        window: window::Settings {
-            always_on_top: true,
-            resizable: false,
-            size: (500, 200),
-            decorations: false,
-            ..Default::default()
-        },
-        flags: results,
-        ..Default::default()
-    })
+
+    let filter = Dynamic::new("".to_string());
+    let programs = filter.map_each(move |filter: &String| results.build(filter));
+
+    let mut window =
+        gooey::window::Window::for_widget(Root(WidgetRef::new(Expand::new(Stack::rows(
+            Children::new()
+                .with_widget(Input::new(filter).on_key(|key| match key.physical_key {
+                    KeyCode::Escape => exit(0),
+                    _ => IGNORED,
+                }))
+                .with_widget(Scroll::vertical(Stack::rows(programs))),
+        )))));
+    window.attributes.window_level = WindowLevel::AlwaysOnTop;
+    window.attributes.resizable = false;
+    window.attributes.title = "Hello World".to_owned();
+    window.run().unwrap();
+    // },
 }
 
-#[derive(Default)]
-struct Starter {
-    should_exit: bool,
-    was_focused: bool,
-    data: Data,
-    filter: String,
-}
+#[derive(Debug)]
+struct Root(WidgetRef);
 
-#[derive(Debug, Clone)]
-enum Message {
-    EventOccurred(iced_native::Event),
-    Filter(String),
-}
-
-impl Application for Starter {
-    type Executor = executor::Default;
-    type Message = Message;
-
-    type Theme = Theme;
-
-    type Flags = Data;
-
-    fn new(data: Self::Flags) -> (Self, Command<Self::Message>) {
-        (
-            Self {
-                data,
-                ..Self::default()
-            },
-            text_input::focus(text_input::Id::new("filter")),
-        )
+impl Widget for Root {
+    fn redraw(&mut self, context: &mut gooey::context::GraphicsContext<'_, '_, '_, '_, '_>) {
+        let widget = self.0.mounted(&mut context.as_event_context());
+        context.for_other(widget).redraw()
     }
 
-    fn theme(&self) -> Self::Theme {
-        match dark_light::detect() {
-            dark_light::Mode::Dark => Theme::Dark,
-            dark_light::Mode::Light => Theme::Light,
-        }
+    fn layout(
+        &mut self,
+        available_space: gooey::kludgine::figures::Size<gooey::ConstraintLimit>,
+        context: &mut gooey::context::LayoutContext<'_, '_, '_, '_, '_>,
+    ) -> gooey::kludgine::figures::Size<gooey::kludgine::figures::units::UPx> {
+        let widget = self.0.mounted(&mut context.as_event_context());
+        context.for_other(widget).layout(available_space)
     }
 
-    fn title(&self) -> String {
-        String::from("Starters")
-    }
-
-    fn view(&self) -> Element<Message> {
-        // TODO Custom scrollable for performance
-        let r = column![
-            text_input("Filter", &self.filter, |s| { Message::Filter(s) })
-                .id(text_input::Id::new("filter"))
-                .padding(5),
-            scrollable(column(self.data.clone().build(&self.filter)))
-        ]
-        .padding(5)
-        .into();
-        r
-    }
-
-    fn should_exit(&self) -> bool {
-        self.should_exit
-    }
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        match message {
-            Message::EventOccurred(Event::Window(WindowEvent::Focused)) => self.was_focused = true,
-            Message::EventOccurred(Event::Window(WindowEvent::Unfocused)) if self.was_focused => {
-                self.should_exit = true
-            }
-            Message::EventOccurred(Event::Keyboard(
-                keyboard::Event::KeyPressed {
-                    key_code: KeyCode::Escape,
-                    ..
-                }
-                | keyboard::Event::KeyReleased {
-                    key_code: KeyCode::Escape,
-                    ..
-                },
-            )) => self.should_exit = true,
-            Message::EventOccurred(Event::Keyboard(keyboard::Event::CharacterReceived('c'))) => {
-                // self.filter.push(c)
-            }
-            Message::Filter(filter) => self.filter = filter,
-            _ => (),
-        }
-        Command::none()
-    }
-
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
-        iced_native::subscription::events().map(Message::EventOccurred)
+    fn blur(&mut self, _context: &mut gooey::context::EventContext<'_, '_>) {
+        exit(0)
     }
 }

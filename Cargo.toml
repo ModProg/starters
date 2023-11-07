@@ -9,6 +9,12 @@ clap = { version = "4.0.13", features = ["derive"] }
 dark-light = "0.2.3"
 # executable-finder = "0.2.2"
 executable-finder = { git = "https://github.com/ModProg/executable-finder", branch = "fix-symlinks-unix" }
+gooey = { git = "https://github.com/khonsulabs/gooey", version = "0.1.0" }
 # iced = "0.4.2"
-iced = { git = "https://github.com/iced-rs/iced", version = "0.4.2" }
-iced_native = { git = "https://github.com/iced-rs/iced", version = "0.5.1" }
+# iced = { git = "https://github.com/iced-rs/iced", version = "0.4.2" }
+# iced_native = { git = "https://github.com/iced-rs/iced", version = "0.5.1" }
+# gooey-core.path = "../gooey/crates/gooey-core/"
+# gooey-widgets.path = "../gooey/crates/gooey-widgets/"
+# gooey-kludgine.path = "../gooey/crates/gooey-kludgine/"
+# gooey.path = "../gooey/"
+# kludgine = "0.5.0"
