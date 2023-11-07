@@ -1184,7 +1184,7 @@ dependencies = [
 [[package]]
 name = "gooey"
 version = "0.1.0"
-source = "git+https://github.com/khonsulabs/gooey#8a2dae3f76b4a4d31c2b7958d931e1d48588729a"
+source = "git+https://github.com/khonsulabs/gooey#5e5d826267bbb3737cbf860d8913893571653499"
 dependencies = [
  "alot",
  "intentional",
