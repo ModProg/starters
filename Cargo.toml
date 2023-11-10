@@ -6,9 +6,11 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0.13", features = ["derive"] }
+clonable-command = "0.1.0"
 dark-light = "0.2.3"
 # executable-finder = "0.2.2"
 executable-finder = { git = "https://github.com/ModProg/executable-finder", branch = "fix-symlinks-unix" }
+fuzzy-matcher = "0.3.7"
 gooey = { git = "https://github.com/khonsulabs/gooey", version = "0.1.0" }
 # iced = "0.4.2"
 # iced = { git = "https://github.com/iced-rs/iced", version = "0.4.2" }

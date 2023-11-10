@@ -2,14 +2,18 @@ use std::process::{exit, Command};
 
 use clap::Parser;
 use executable_finder::{executables, Executable};
-
 use gooey::context::AsEventContext;
 use gooey::kludgine::app::winit::keyboard::KeyCode;
-use gooey::kludgine::figures::IntoSigned;
-use gooey::widget::{MakeWidget, ManagedWidget, Widget, WidgetInstance, WidgetRef, IGNORED};
-use gooey::widgets::{Button, Expand, Input, Scroll, Stack};
+use gooey::kludgine::figures::units::Px;
+use gooey::kludgine::figures::{IntoSigned, Size};
+use gooey::styles::DimensionRange;
+use gooey::widget::{MakeWidget, Widget, WidgetInstance, WidgetRef, IGNORED};
+use gooey::widgets::{Input, Resize, Scroll, Stack};
+use gooey::window::Window;
 use gooey::{kludgine::app::winit::window::WindowLevel, Run};
 use gooey::{value::Dynamic, widget::Children};
+
+mod fuzzy;
 
 #[derive(Debug, Parser)]
 enum Cmd {
@@ -26,19 +30,9 @@ enum Data {
 
 impl Data {
     fn build(&self, filter: &str) -> Children {
+        let fuzzy = fuzzy::Fuzzy::new();
         match self {
-            Data::Commands(this) => this
-                .iter()
-                .filter(|this| this.name.to_lowercase().contains(&filter.to_lowercase()))
-                .take(20)
-                .map(|it| {
-                    let path = it.path.clone();
-                    Button::new(it.name.to_owned()).on_click(move |_| {
-                        _ = Command::new(&path).spawn();
-                        exit(0);
-                    })
-                })
-                .collect(),
+            Data::Commands(commands) => fuzzy.filter(filter, commands),
             Data::None => Children::default(),
         }
     }
@@ -66,23 +60,19 @@ pub fn main() {
             _ => IGNORED,
         })
         .make_widget();
-    let mut window = gooey::window::Window::for_widget(Root(
-        WidgetRef::new(Expand::new(Stack::rows(
-            Children::new()
-                .with_widget(input.clone())
-                .with_widget(Scroll::vertical(Stack::rows(programs))),
-        ))),
-        input,
-    ));
+    let mut window = Window::for_widget(Root(WidgetRef::new(Resize::to(
+        Size::<DimensionRange>::new(Px(600), ..Px(400)),
+        Stack::rows(input.clone().and(Stack::rows(programs))),
+    ))));
     window.attributes.window_level = WindowLevel::AlwaysOnTop;
     window.attributes.resizable = false;
-    window.attributes.title = "Hello World".to_owned();
+    window.attributes.title = "Starters".to_owned();
     window.run().unwrap();
     // },
 }
 
 #[derive(Debug)]
-struct Root(WidgetRef, WidgetInstance);
+struct Root(WidgetRef);
 
 impl Widget for Root {
     fn redraw(&mut self, context: &mut gooey::context::GraphicsContext<'_, '_, '_, '_, '_>) {
@@ -104,20 +94,4 @@ impl Widget for Root {
     // fn blur(&mut self, _context: &mut gooey::context::EventContext<'_, '_>) {
     //     exit(0)
     // }
-
-    fn accept_focus(&mut self, context: &mut gooey::context::EventContext<'_, '_>) -> bool {
-        true
-    }
-
-    fn hit_test(
-        &mut self,
-        location: gooey::kludgine::figures::Point<gooey::kludgine::figures::units::Px>,
-        context: &mut gooey::context::EventContext<'_, '_>,
-    ) -> bool {
-        true
-    }
-
-    fn focus(&mut self, context: &mut gooey::context::EventContext<'_, '_>) {
-        context.for_other(&self.1).unwrap().focus()
-    }
 }
