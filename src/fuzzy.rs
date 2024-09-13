@@ -57,7 +57,7 @@ impl Fuzzy {
         this.sort_by_key(|e| -e.1);
 
         this.iter()
-            .take(100)
+            .take(20)
             .map(|(it, _)| {
                 // TODO highlight matched characters
                 let action = it.action();
