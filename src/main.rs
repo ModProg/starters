@@ -1,17 +1,14 @@
 use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use clap::Parser;
+use cushy::kludgine::app::winit::keyboard::{KeyCode, PhysicalKey};
+use cushy::value::Dynamic;
+use cushy::value::Source;
+use cushy::widget::{MakeWidget, WidgetList, IGNORED};
+use cushy::widgets::{Input, Stack};
+use cushy::{kludgine::app::winit::window::WindowLevel, Run};
 use executable_finder::{executables, Executable};
-use gooey::context::AsEventContext;
-use gooey::kludgine::app::winit::keyboard::KeyCode;
-use gooey::kludgine::figures::units::Px;
-use gooey::kludgine::figures::{IntoSigned, Size};
-use gooey::styles::{DimensionRange, ThemePair};
-use gooey::widget::{MakeWidget, Widget, WidgetRef, IGNORED};
-use gooey::widgets::{Expand, Input, Resize, Stack};
-use gooey::window::Window;
-use gooey::{kludgine::app::winit::window::WindowLevel, Run};
-use gooey::{value::Dynamic, widget::Children};
 
 mod fuzzy;
 
@@ -28,7 +25,7 @@ enum Data {
 }
 
 impl Data {
-    fn build(&self, filter: &str) -> Children {
+    fn build(&self, filter: &str) -> WidgetList {
         let fuzzy = fuzzy::Fuzzy::new();
         match self {
             Data::Commands(commands) => fuzzy.filter(filter, commands),
@@ -54,48 +51,27 @@ pub fn main() {
 
     let input = Input::new(filter)
         .on_key(|key| match key.physical_key {
-            KeyCode::Escape => exit(0),
+            PhysicalKey::Code(KeyCode::Escape) => exit(0),
             _ => IGNORED,
         })
         .make_widget();
     let input_id = input.id();
-    let mut window = Root(WidgetRef::new(
-        Stack::rows(input.with_next_focus(input_id).and(Stack::rows(programs))),
-    ))
-    .into_window()
-    .with_focused(|focused: &bool| {
-        if !focused {
-            exit(0)
-        }
-    });
-    window.attributes.window_level = WindowLevel::AlwaysOnTop;
-    window.attributes.resizable = false;
-    window.attributes.title = "Starters".to_owned();
-    window.attributes.transparent = true;
-    // window.attributes.app_name = Some("de.modprog.starters".into());
+    let window = Stack::rows(input.with_next_focus(input_id).and(Stack::rows(programs)))
+        .into_window()
+        .focused(Dynamic::new(true).with_for_each({
+            let skip_initial_unfocus_because_ecton_is_wierd = AtomicBool::new(false);
+            move |focused| {
+                dbg!(focused);
+                if !focused
+                    && skip_initial_unfocus_because_ecton_is_wierd.swap(true, Ordering::Relaxed)
+                {
+                    exit(0)
+                }
+            }
+        }))
+        .window_level(WindowLevel::AlwaysOnTop)
+        .resizable(false)
+        .titled("Starters")
+        .app_name("de.modprog.starters");
     window.run().unwrap();
-    // },
-}
-
-#[derive(Debug)]
-struct Root(WidgetRef);
-
-impl Widget for Root {
-    fn redraw(&mut self, context: &mut gooey::context::GraphicsContext<'_, '_, '_, '_, '_>) {
-        let color = context.theme().surface.color.with_alpha(u8::MAX - 50);
-        context.gfx.fill(color);
-        let widget = self.0.mounted(&mut context.as_event_context());
-        context.for_other(&widget).redraw()
-    }
-
-    fn layout(
-        &mut self,
-        available_space: gooey::kludgine::figures::Size<gooey::ConstraintLimit>,
-        context: &mut gooey::context::LayoutContext<'_, '_, '_, '_, '_>,
-    ) -> gooey::kludgine::figures::Size<gooey::kludgine::figures::units::UPx> {
-        let widget = self.0.mounted(&mut context.as_event_context());
-        let size = context.for_other(&widget).layout(available_space);
-        context.set_child_layout(&widget, size.into_signed().into());
-        size
-    }
 }

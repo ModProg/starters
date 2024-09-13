@@ -1,9 +1,9 @@
 use std::process::exit;
 
 use clonable_command::Command;
+use cushy::{widget::WidgetList, widgets::Button};
 use executable_finder::Executable;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use gooey::{widget::Children, widgets::Button};
 
 pub enum Action {
     Command(Command),
@@ -44,7 +44,7 @@ impl Fuzzy {
         }
     }
 
-    pub fn filter<T: Item>(&self, filter: &str, options: impl IntoIterator<Item = T>) -> Children {
+    pub fn filter<T: Item>(&self, filter: &str, options: impl IntoIterator<Item = T>) -> WidgetList {
         let mut this: Vec<_> = options
             .into_iter()
             .filter_map(|elem| {
